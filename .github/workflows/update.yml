@@ -1,4 +1,4 @@
-name: Cập nhật NextDNS Denylist
+name: Cập nhật NextDNS Denylist và Allowlist
 
 on:
   schedule:
@@ -10,17 +10,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Thiết lập Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+
       - name: Cài đặt thư viện
         run: pip install requests
+
       - name: Chạy script cập nhật
         run: python update_list.py
         env:
-          NEXTDNS_API_KEY: ${{ secrets.NEXTDNS_API_KEY }}
-          NEXTDNS_PROFILE_ID: ${{ secrets.NEXTDNS_PROFILE_ID }}
+          # Đặt biến NextDNS API KEY và PROFILE ID cho từng tài khoản
+          NEXTDNS_1_API_KEY: ${{ secrets.NEXTDNS_1_API_KEY }}
+          NEXTDNS_1_PROFILE_ID: ${{ secrets.NEXTDNS_1_PROFILE_ID }}
+          NEXTDNS_2_API_KEY: ${{ secrets.NEXTDNS_2_API_KEY }}
+          NEXTDNS_2_PROFILE_ID: ${{ secrets.NEXTDNS_2_PROFILE_ID }}
+
+          # Đặt danh sách chặn (blocklist) và cho phép (allowlist) từ Variables
           BLOCKLIST_URLS_1: ${{ vars.BLOCKLIST_URLS_1 }}
           BLOCKLIST_URLS_2: ${{ vars.BLOCKLIST_URLS_2 }}
           BLOCKLIST_URLS_3: ${{ vars.BLOCKLIST_URLS_3 }}
+          ALLOWLIST_URLS_1: ${{ vars.ALLOWLIST_URLS_1 }}
+          ALLOWLIST_URLS_2: ${{ vars.ALLOWLIST_URLS_2 }}

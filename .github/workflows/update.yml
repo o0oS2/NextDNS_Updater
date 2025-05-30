@@ -1,0 +1,26 @@
+name: Cập nhật NextDNS Denylist
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Chạy hàng ngày vào 00:00 UTC
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Thiết lập Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Cài đặt thư viện
+        run: pip install requests
+      - name: Chạy script cập nhật
+        run: python update_denylist.py
+        env:
+          NEXTDNS_API_KEY: ${{ secrets.NEXTDNS_API_KEY }}
+          NEXTDNS_PROFILE_ID: ${{ secrets.NEXTDNS_PROFILE_ID }}
+          BLOCKLIST_URLS_1: ${{ vars.BLOCKLIST_URLS_1 }}
+          BLOCKLIST_URLS_2: ${{ vars.BLOCKLIST_URLS_2 }}
+          BLOCKLIST_URLS_3: ${{ vars.BLOCKLIST_URLS_3 }}

@@ -17,7 +17,7 @@ jobs:
       - name: Cài đặt thư viện
         run: pip install requests
       - name: Chạy script cập nhật
-        run: python update_denylist.py
+        run: python update_list.py
         env:
           NEXTDNS_API_KEY: ${{ secrets.NEXTDNS_API_KEY }}
           NEXTDNS_PROFILE_ID: ${{ secrets.NEXTDNS_PROFILE_ID }}

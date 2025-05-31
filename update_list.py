@@ -1,92 +1,90 @@
-import requests
 import os
+import requests
+import json
 
-def get_list_urls(prefix):
-    urls = []
-    for key, value in os.environ.items():
-        if key.startswith(prefix):
-            urls.append(value)
-    return urls
-
-def fetch_domains(urls):
+def load_domains_from_urls(urls):
     domains = set()
     for url in urls:
+        url = url.strip()
+        if not url:
+            print(f"❌ Bỏ qua URL rỗng.")
+            continue
         print(f"🔗 Đang tải danh sách từ: {url}")
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=15)
             response.raise_for_status()
-            for line in response.text.splitlines():
+            lines = response.text.splitlines()
+            for line in lines:
                 line = line.strip()
                 if line and not line.startswith("#"):
                     domains.add(line)
         except Exception as e:
-            print(f"❌ Lỗi khi tải {url}: {e}")
-    return sorted(domains)
+            print(f"❌ Lỗi khi tải {url}\n: {e}")
+    return list(domains)
 
-def update_list(api_key, profile_id, domains, list_type):
-    url = f"https://api.nextdns.io/profiles/{profile_id}/{list_type}"
+def update_nextdns_list(api_key, profile_id, endpoint, domains):
+    if not domains:
+        print(f"⚠️ Không có domain nào để cập nhật {endpoint}. Bỏ qua...")
+        return
+
+    url = f"https://api.nextdns.io/profiles/{profile_id}/{endpoint}"
     headers = {
         "X-Api-Key": api_key,
         "Content-Type": "application/json"
     }
-    # PUT để thay thế toàn bộ danh sách
-    data = {"domains": domains}
 
-    print(f"⏳ Đang gửi danh sách {list_type.upper()} ({len(domains)} domains) đến profile {profile_id}...")
-    response = requests.put(url, json=data, headers=headers)
+    payload = {"domain": domains}
+    try:
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        print(f"Response code: {response.status_code}")
+        print(f"Response body: {response.text}")
+        if response.status_code == 200 or response.status_code == 201:
+            print(f"✅ Cập nhật {endpoint} thành công ({len(domains)} domains)")
+        else:
+            print(f"❌ Lỗi khi cập nhật {endpoint}: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"❌ Lỗi khi gửi API: {e}")
 
-    print(f"Response code: {response.status_code}")
-    print(f"Response body: {response.text}")
-
-    if response.status_code == 200:
-        print(f"✅ Đã thay thế {len(domains)} domain vào {list_type.upper()} của NextDNS profile {profile_id}!")
-    else:
-        print(f"❌ Lỗi {list_type.upper()}: {response.status_code} - {response.text}")
-
-def get_nextdns_accounts():
-    accounts = []
-    index = 1
-    while True:
-        api_key = os.getenv(f"NEXTDNS_{index}_API_KEY")
-        profile_id = os.getenv(f"NEXTDNS_{index}_PROFILE_ID")
-        if not api_key or not profile_id:
-            if index == 1:
-                print("⚠️ Không tìm thấy biến môi trường NEXTDNS_1_API_KEY hoặc NEXTDNS_1_PROFILE_ID")
-            break
-        print(f"✅ Tìm thấy NEXTDNS_{index}_API_KEY và PROFILE_ID")
-        accounts.append((api_key, profile_id))
-        index += 1
-    return accounts
-
-if __name__ == "__main__":
+def main():
     print("🚀 Bắt đầu cập nhật danh sách NextDNS...")
 
-    blocklist_urls = get_list_urls("BLOCKLIST_URLS_")
-    allowlist_urls = get_list_urls("ALLOWLIST_URLS_")
+    accounts = []
+    for i in range(1, 10):
+        api_key = os.environ.get(f'NEXTDNS_{i}_API_KEY', '').strip()
+        profile_id = os.environ.get(f'NEXTDNS_{i}_PROFILE_ID', '').strip()
+        if api_key and profile_id:
+            print(f"✅ Tìm thấy NEXTDNS_{i}_API_KEY và PROFILE_ID")
+            accounts.append((api_key, profile_id))
+        else:
+            continue
 
-    accounts = get_nextdns_accounts()
-    if not accounts:
-        print("❗ Không có tài khoản NextDNS nào được cấu hình.")
-        exit(1)
+    # Load blocklist và allowlist
+    blocklist_urls = []
+    for i in range(1, 10):
+        url = os.environ.get(f'BLOCKLIST_URLS_{i}', '').strip()
+        if url:
+            blocklist_urls.append(url)
 
-    if blocklist_urls:
-        blocklist = fetch_domains(blocklist_urls)
-        print(f"🌐 Tổng số domain trong Denylist: {len(blocklist)}")
-    else:
-        blocklist = []
-        print("⚠️ Không có danh sách chặn (Denylist) nào được cung cấp.")
+    allowlist_urls = []
+    for i in range(1, 10):
+        url = os.environ.get(f'ALLOWLIST_URLS_{i}', '').strip()
+        if url:
+            allowlist_urls.append(url)
 
-    if allowlist_urls:
-        allowlist = fetch_domains(allowlist_urls)
-        print(f"🌐 Tổng số domain trong Allowlist: {len(allowlist)}")
-    else:
-        allowlist = []
-        print("⚠️ Không có danh sách cho phép (Allowlist) nào được cung cấp.")
+    blocklist_domains = load_domains_from_urls(blocklist_urls)
+    print(f"🌐 Tổng số domain trong Denylist: {len(blocklist_domains)}")
+
+    allowlist_domains = load_domains_from_urls(allowlist_urls)
+    print(f"🌐 Tổng số domain trong Allowlist: {len(allowlist_domains)}")
 
     for api_key, profile_id in accounts:
-        if blocklist:
-            update_list(api_key, profile_id, blocklist, "denylist")
-        if allowlist:
-            update_list(api_key, profile_id, allowlist, "allowlist")
+        print(f"⏳ Đang gửi danh sách DENYLIST ({len(blocklist_domains)} domains) đến profile {profile_id}...")
+        update_nextdns_list(api_key, profile_id, 'denylist', blocklist_domains)
+
+        print(f"⏳ Đang gửi danh sách ALLOWLIST ({len(allowlist_domains)} domains) đến profile {profile_id}...")
+        update_nextdns_list(api_key, profile_id, 'allowlist', allowlist_domains)
 
     print("🎉 Hoàn thành cập nhật danh sách NextDNS!")
+
+if __name__ == "__main__":
+    main()
